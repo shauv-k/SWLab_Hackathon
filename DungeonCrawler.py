@@ -47,20 +47,21 @@ class Level:
 
     def check_game_over(self):
         if self.hero.health <= 0:
-            print("\n💀 Your HP dropped to 0. Game Over!")
+            print("💀 Your HP dropped to 0. Game Over!")
             exit()
 
     def move_player(self, direction):
         old_position = self.hero.position
         new_position = self.hero.move(direction, self.size)
-
+        x, y = new_position
+        
         if new_position != old_position:
+            if self.grid[y][x] == '_':
+                print("🚪🔓 You have already visited this room.\n")
             x, y = new_position
             self.grid[y][x] = '_'
             self.trigger_event(x, y)
             self.print_grid()
-        else:
-            print("⚠️ You hit a wall.")
 
     def trigger_event(self, x, y):
         if (x, y) in self.events_triggered:
@@ -84,7 +85,9 @@ class Level:
                     self.hero.attack_power += 10 + (5 * self.level)
                     print("🗡️ You equipped a Sword! Attack Power increased by 10")
                 else:
+                    self.hero.max_health += 10 + (5 * self.level)
                     self.hero.health += 10 + (5 * self.level)
+                    self.hero.health = min(self.hero.health , self.hero.max_health)
                     print("🛡️ You equipped a Shield! Health increased by 10")
             else:
                 print("🎁 Treasure Room 2: Choose item to collect:")
@@ -177,6 +180,8 @@ class Hero(Entity):
         super().__init__(name="Hero", health=100, attack_power=10)
         self.level = 1
         self.xp = 0
+        self.max_xp = 100
+        self.max_health = 100
         self.inventory = ["Healing Potion", "Strength Elixir"]  
         self.position = (0, 0)
 
@@ -195,11 +200,12 @@ class Hero(Entity):
         if item_name in self.inventory:
             if item_name == "Healing Potion":
                 self.health += 30
+                self.health = min(self.health, self.max_health)
                 print(f"{self.name} used a Healing Potion! +30 HP")
             elif item_name == "Strength Elixir":
                 self.attack_power += 5
                 print(f"{self.name} drank a Strength Elixir! +5 Attack Power")
-            self.inventory.remove(item_name)  
+            self.inventory.remove(item_name)
         else:
             print(f"❌ {item_name} not found in inventory!")
 
@@ -218,13 +224,15 @@ class Hero(Entity):
 
     def gain_xp(self, amount):
         self.xp += amount
-        if self.xp >= 100:
+        if self.xp >= self.max_xp:
             self.level_up()
 
     def level_up(self):
         self.level += 1
         self.xp = 0
-        self.health += 20
+        self.max_xp += 10
+        self.max_health += 20
+        self.health = self.max_health
         self.attack_power += 5
         print(f"🆙 {self.name} leveled up! Now Level {self.level} | ❤️ +20 | ⚔️ +5")
 
@@ -249,11 +257,11 @@ class Hero(Entity):
             self.position = (new_x, new_y)
             print(f"📍 Moved to {self.position}")
         else:
-            print("Choose another direction\n")
+            print("⚠️ You hit a wall. Try another direction.")
         return self.position
 
     def show_stats(self):
-        print(f"👤 {self.name} | ❤️ {self.health:.1f} | ⚔️ {self.attack_power} | 🧠 XP: {self.xp} | 🎖️ Level: {self.level}")
+        print(f"👤 {self.name} | ❤️ HP: {max(self.health,0)} / {self.max_health} | ⚔️ ATK: {self.attack_power} | 🧠 XP: {self.xp} / {self.max_xp}  | 🎖️ LVL: {self.level}")
 
 
 # --------- Monster Class ----------
@@ -278,7 +286,7 @@ class Monster(Entity):
         print(f"{self.name} is defending and will take reduced damage next turn.")
 
     def show_stats(self):
-        print(f"👤 {self.name} | ❤️ {self.health:.1f}")
+        print(f"👤 {self.name} | ❤️ HP: {max(self.health,0)}")
 
 
 # --------- Boss Class ----------
@@ -303,7 +311,7 @@ class Boss(Entity):
         print(f"{self.name} is defending and will take reduced damage next turn.")
     
     def show_stats(self):
-        print(f"👤 {self.name} | ❤️ {self.health:.1f}")
+        print(f"👤 {self.name} | ❤️ HP: {max(self.health,0)}")
 
 
 # --------- Save and Load ----------
@@ -406,7 +414,7 @@ def game_loop():
 
         while True:
             print("\n🧭 What would you like to do?")
-            print("1. Move (north, south, east, west)")
+            print("1. Move")
             print("2. Show Hero Stats")
             print("3. Show Inventory")
             print("4. Use Item")
@@ -418,7 +426,8 @@ def game_loop():
             choice = input("> ").strip().lower()
 
             if choice == '1':
-                direction = input("Enter direction (north/south/east/west): ").strip().lower()
+                direction = input("Enter direction north/south/east/west: ").strip().lower()
+                print("\n")
                 level.move_player(direction)
 
                 if level.hero_won:
